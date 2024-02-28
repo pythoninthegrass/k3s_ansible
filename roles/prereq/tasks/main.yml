@@ -67,3 +67,58 @@
     path: /etc/sudoers
     validate: 'visudo -cf %s'
   when: ansible_os_family in [ "RedHat", "Suse" ]
+
+# - name: Set hostname by position in inventory
+#   set_fact:
+#     hostname: "{{ inventory_hostname }}"
+#   when: inventory_hostname in groups['master'] or inventory_hostname in groups['node']
+
+# - name: Update hostname for master hosts
+#   set_fact:
+#     hostname: "master-{{ groups['master'].index(inventory_hostname) + 1 }}"
+#   when: inventory_hostname in groups['master']
+
+# - name: Update hostname for node hosts
+#   set_fact:
+#     hostname: "worker-{{ groups['node'].index(inventory_hostname) + 1 }}"
+#   when: inventory_hostname in groups['node']
+
+# # TODO: qa
+# - name: Change hostname of each host
+#   ansible.builtin.hostname:
+#     name: "{{ hostname }}"
+#   when: inventory_hostname in groups['master'] or inventory_hostname in groups['node']
+
+- name: Disable swap
+  ansible.builtin.command: swapoff -a
+  when: inventory_hostname in groups['master']
+
+- name: Update /etc/fstab to disable swap
+  lineinfile:
+    line: 'UUID={{ ansible_mounts[0].uuid }} none swap sw 0 0'
+    path: /etc/fstab
+    state: absent
+    backup: yes
+
+# - name: Generate ssh key
+#   community.crypto.openssh_keypair:
+#     path: "{{ ansible_user_dir }}/.ssh/id_rsa"
+#     size: 4096
+#     state: present
+#     force: no
+#     mode: 0600
+
+# - name: Set ownership of public key file
+#   file:
+#     path: '{{ ansible_user_dir }}/.ssh/id_rsa.pub'
+#     owner: '{{ ansible_user }}'
+#     group: '{{ ansible_user }}'
+#   become: true
+
+# TODO: The 'file' lookup had an issue accessing the file '/home/ubuntu/.ssh/id_rsa.pub'. file not found
+# - name: Add ssh public key to authorized_keys
+#   ansible.posix.authorized_key:
+#     user: "{{ ansible_user }}"
+#     state: present
+#     # key: "{{ lookup('file', '{{ ansible_user_dir }}/.ssh/id_rsa.pub') }}"
+#     key: "{{ lookup('file', '/home/.ssh/id_rsa.pub') }}"

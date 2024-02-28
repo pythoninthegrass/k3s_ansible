@@ -18,3 +18,16 @@
   file:
     path: /tmp/k3s
     state: absent
+
+# TODO: qa
+- name: Set ownership of /etc/rancher/k3s/k3s.yaml on master
+  file:
+    path: /etc/rancher/k3s/k3s.yaml
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+  when: inventory_hostname in groups['master']
+
+# TODO: setup/qa
+# sudo chown -R ubuntu:ubuntu /etc/rancher/k3s
+# sudo chmod -R 755 /etc/rancher/k3s

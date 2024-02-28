@@ -1,3 +1,8 @@
+# ETC
+!**/all.yml.example
+**/all.yml
+**/kubeconfig
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

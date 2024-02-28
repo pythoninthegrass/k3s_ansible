@@ -4,9 +4,6 @@
   gather_facts: true
   environment: "{{ proxy_env | default({}) }}"
   roles:
-    - role: lxc
-      become: true
-      when: proxmox_lxc_configure
     - role: prereq
       become: true
     - role: download
