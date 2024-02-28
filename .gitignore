@@ -1,6 +1,8 @@
 # ETC
 !**/all.yml.example
+!**/hosts.ini.example
 **/all.yml
+**/hosts.ini
 **/kubeconfig
 
 # Byte-compiled / optimized / DLL files
