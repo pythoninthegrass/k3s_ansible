@@ -1,0 +1,86 @@
+# code: language=ansible
+
+---
+- hosts: all
+  become: false
+  gather_facts: true
+  any_errors_fatal: true
+  vars:
+    ssh_key: id_rsa
+    gist_url: git@gist.github.com:327990bcd3fdea4842a02584ba422682.git
+  environment:
+    EDITOR: vim
+  roles:
+    - pre-tasks
+  pre_tasks:
+    - name: Cross-platform dependencies
+      ansible.builtin.package:
+        name:
+          - git
+        state: present
+      become: true
+      tags: pre
+  tasks:
+    - name: Setup directory for git repos
+      ansible.builtin.file:
+        path: "{{ ansible_user_dir }}/git"
+        state: directory
+        owner: "{{ local_user }}"
+        group: "{{ local_user }}"
+        recurse: false
+      become: true
+
+    - name: Copy ssh keys
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ ansible_user_dir }}/.ssh/{{ item | basename }}"
+        owner: "{{ local_user }}"
+        group: "{{ local_user }}"
+        mode: '0600'
+      with_items:
+        - "{{ lookup('env', 'HOME') }}/.ssh/{{ ssh_key }}"
+        - "{{ lookup('env', 'HOME') }}/.ssh/{{ ssh_key }}.pub"
+
+    - name: Accept GitHub ssh key fingerprint
+      shell: |
+        mkdir -p {{ ansible_user_dir }}/.ssh
+        ssh-keyscan github.com >> {{ ansible_user_dir }}/.ssh/known_hosts
+        ssh-keyscan gist.github.com >> {{ ansible_user_dir }}/.ssh/known_hosts
+      changed_when: false
+      become: true
+
+    - name: |
+        Clone .bash_aliases]
+        DESC [Clone .bash_aliases from Gist. Set UPDATE=true to update existing file.
+      ansible.builtin.git:
+        repo: "{{ gist_url }}"
+        dest: "{{ ansible_user_dir }}/git/bash_aliases"
+        update: "{{ lookup('env', 'UPDATE') | default('false') | bool }}"
+        force: false
+        key_file: "{{ ansible_user_dir }}/.ssh/{{ ssh_key }}"
+
+    - name: Check if .bash_aliases is a symlink
+      ansible.builtin.stat:
+        path: "{{ ansible_user_dir }}/.bash_aliases"
+      register: links
+
+    - name: Remove .bash_aliases if it's a file
+      ansible.builtin.file:
+        path: "{{ ansible_user_dir }}/.bash_aliases"
+        state: absent
+      when: links.stat.islnk is not defined
+
+    - name: Remove .bash_aliases if it's a file
+      ansible.builtin.file:
+        path: "{{ ansible_user_dir }}/.bash_aliases"
+        state: absent
+      when: links.stat.islnk is not defined
+
+    - name: Create symlink to .bash_aliases
+      ansible.builtin.file:
+        src: "{{ ansible_user_dir }}/git/bash_aliases/.bash_aliases"
+        dest: "{{ ansible_user_dir }}/.bash_aliases"
+        state: link
+        force: true
+        owner: "{{ local_user }}"
+        group: "{{ local_user }}"
