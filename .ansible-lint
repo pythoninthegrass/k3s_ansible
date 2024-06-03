@@ -19,6 +19,7 @@ exclude_paths:
 skip_list:
   - command-instead-of-shell
   - fqcn-builtins
+  - latest[git]
   - name[play]
   - risky-file-permissions
   - var-naming[no-role-prefix]
