@@ -1,11 +1,12 @@
 # ETC
 **/all.yml
+**/facts/*
 **/hosts
 **/kubeconfig
 
 # INCLUDE
-!**/all.yml.example
-!**/hosts.ini.example
+!**/.gitkeep
+!**/*.example
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
