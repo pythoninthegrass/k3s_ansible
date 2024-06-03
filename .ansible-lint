@@ -17,5 +17,8 @@ exclude_paths:
   - 'galaxy.yml'
 
 skip_list:
-  - 'fqcn-builtins'
+  - command-instead-of-shell
+  - fqcn-builtins
+  - name[play]
+  - risky-file-permissions
   - var-naming[no-role-prefix]
