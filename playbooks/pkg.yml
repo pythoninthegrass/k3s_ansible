@@ -1,0 +1,244 @@
+# code: language=ansible
+
+---
+- hosts: all
+  become: false
+  gather_facts: true
+  any_errors_fatal: false
+  # vars:
+  environment:
+    EDITOR: vim
+  roles:
+    - pre-tasks
+  pre_tasks:
+    - name: Update Package Cache (Debian)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      register: apt_get_status
+      until: apt_get_status is success
+      retries: 3
+      delay: 5
+      become: true
+      when: ansible_os_family == "Debian"
+      tags: pre
+
+    - name: Update Package Cache (Red Hat)
+      ansible.builtin.dnf:
+        update_cache: true
+      register: dnf_status
+      until: dnf_status is success
+      retries: 3
+      delay: 5
+      become: true
+      when: ansible_os_family == "RedHat"
+      tags: pre
+
+    - name: Cross-platform dependencies
+      ansible.builtin.package:
+        name:
+          - ansible
+          - ansible-lint
+          - bat
+          - ca-certificates
+          - certbot
+          - cloud-init
+          - git
+          - nginx
+          - python3
+          - python3-certbot-nginx
+          - python3-redis
+          - python3-psutil
+          - tree
+          - unzip
+          - vim
+        state: present
+      changed_when: false
+      become: true
+      tags: pre
+
+    - name: Install Red Hat packages
+      ansible.builtin.dnf:
+        name:
+          - "@Development tools"
+          - bzip2
+          - bzip2-devel
+          - libffi-devel
+          - ncurses-devel
+          - openssl-devel
+          - readline-devel
+        state: present
+      become: true
+      when: ansible_os_family == "RedHat"
+      tags: pre
+
+    - name: Install debian packages
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - bats
+          - build-essential
+          - ca-certificates
+          - cloud-init
+          - curl
+          - gnupg-agent
+          - jq
+          - kafkacat
+          - libbz2-dev
+          - libffi-dev
+          - liblzma-dev
+          - libncursesw5-dev
+          - libreadline-dev
+          - libsqlite3-dev
+          - libssl-dev
+          - libxml2-dev
+          - libxmlsec1-dev
+          - llvm
+          - make
+          - nfs-kernel-server
+          - net-tools
+          - python3
+          - python3-certbot-nginx
+          - python3-pip
+          - software-properties-common
+          - tk-dev
+          - tree
+          - vim
+          - wget
+          - xz-utils
+          - zlib1g-dev
+        update_cache: true
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+      tags: pre
+  tasks:
+    - name: Setup directory for git repos
+      ansible.builtin.file:
+        path: "{{ home_dir }}/git"
+        state: directory
+        owner: "{{ local_user }}"
+        group: "{{ local_user }}"
+        recurse: false
+      become: true
+      become_method: ansible.builtin.su
+      become_user: "{{ local_user }}"
+      become_flags: '-s /bin/sh'
+
+    - name: Download asdf
+      ansible.builtin.git:
+        repo: https://github.com/asdf-vm/asdf.git
+        dest: "{{ home_dir }}/.asdf"
+        version: v0.14.0
+        force: false
+      become: false
+
+    - name: Check if asdf plugins are installed
+      ansible.builtin.shell:
+        cmd: |
+          source {{ home_dir }}/.asdf/asdf.sh
+          asdf plugin-list
+      args:
+        executable: /bin/bash
+      register: plugin_list
+      changed_when: false
+      become: false
+      tags: qa
+
+    # TODO: ruby is a problem child (always); as is ko
+    - name: Add missing asdf plugins
+      ansible.builtin.shell: |
+        source {{ home_dir }}/.asdf/asdf.sh
+        asdf plugin-add {{ item }}
+      args:
+        executable: /bin/bash
+      with_items:
+        - awscli
+        - gcloud https://github.com/jthegedus/asdf-gcloud
+        - golang https://github.com/kennyp/asdf-golang.git
+        - helm https://github.com/Antiarchitect/asdf-helm.git
+        - helmfile https://github.com/nwiizo/asdf-helmfile.git
+        # - ko https://github.com/zasdaym/asdf-ko.git
+        - kompose
+        - kubectl https://github.com/asdf-community/asdf-kubectl.git
+        - kubectx https://github.com/virtualstaticvoid/asdf-kubectx.git
+        - kustomize https://github.com/Banno/asdf-kustomize.git
+        - lazydocker https://github.com/comdotlinux/asdf-lazydocker.git
+        - lazygit
+        - nodejs https://github.com/asdf-vm/asdf-nodejs.git
+        - packer https://github.com/asdf-community/asdf-hashicorp.git
+        - poetry https://github.com/asdf-community/asdf-poetry.git
+        - python
+        # - ruby
+        - rust https://github.com/asdf-community/asdf-rust.git
+        - terraform
+        - vault https://github.com/asdf-community/asdf-hashicorp.git
+        - zoxide https://github.com/nyrst/asdf-zoxide.git
+      changed_when: false
+      register: installed_plugins
+      become: true
+      become_method: ansible.builtin.su
+      become_user: "{{ local_user }}"
+      become_flags: '-s /bin/sh'
+      tags: qa
+
+    - name: Install latest runtime
+      ansible.builtin.shell: |
+        source {{ home_dir }}/.asdf/asdf.sh
+        asdf install {{ item }} latest
+      args:
+        executable: /bin/bash
+      with_items: "{{ plugin_list.stdout_lines }}"
+      become: true
+      become_method: ansible.builtin.su
+      become_user: "{{ local_user }}"
+      become_flags: '-s /bin/sh'
+      ignore_errors: false
+      changed_when: false
+      tags: qa
+
+    - name: Set default runtime
+      ansible.builtin.shell: |
+        source {{ home_dir }}/.asdf/asdf.sh
+        asdf global {{ item }} latest
+      args:
+        executable: /bin/bash
+      with_items: "{{ plugin_list.stdout_lines }}"
+      become: true
+      become_method: ansible.builtin.su
+      become_user: "{{ local_user }}"
+      become_flags: '-s /bin/sh'
+      changed_when: false
+      tags: qa
+
+    - name: Set poetry options
+      ansible.builtin.shell: |
+        source {{ home_dir }}/.asdf/asdf.sh
+        poetry config virtualenvs.prefer-active-python true
+        poetry config virtualenvs.in-project true
+        poetry config virtualenvs.create true
+      args:
+        executable: /bin/bash
+      become: true
+      become_method: ansible.builtin.su
+      become_user: "{{ local_user }}"
+      become_flags: '-s /bin/sh'
+      changed_when: false
+      tags: qa
+
+    - name: Install pip packages globally
+      ansible.builtin.pip:
+        name:
+          - pipx
+          - python-decouple
+          - requests
+          - requests-cache
+          - tldr
+      environment:
+        PYTHONIOENCODING: "UTF-8"
+        PIP_NO_CACHE_DIR: "off"
+        PIP_DISABLE_PIP_VERSION_CHECK: "on"
+        PIP_DEFAULT_TIMEOUT: "100"
+        PIP_ROOT_USER_ACTION: "ignore"
+      become: true
+      tags: qa

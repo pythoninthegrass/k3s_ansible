@@ -1,0 +1,70 @@
+# code: language=ansible
+
+---
+- hosts: all
+  become: false
+  gather_facts: true
+  any_errors_fatal: true
+  # vars:
+  environment:
+    EDITOR: vim
+  roles:
+    - pre-tasks
+  pre_tasks:
+    - name: Update Package Cache (Debian)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      register: apt_get_status
+      until: apt_get_status is success
+      retries: 3
+      delay: 5
+      become: true
+      when: ansible_os_family == "Debian"
+      tags: pre
+  tasks:
+    - name: Upgrade all packages
+      ansible.builtin.shell: apt dist-upgrade -y
+      register: apt_get_status
+      until: apt_get_status is success
+      retries: 3
+      delay: 5
+      changed_when: false
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Reboot the system
+      ansible.builtin.reboot:
+      become: true
+      when: ansible_os_family == "Debian"
+
+    - name: Wait for the system to come back online
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        sleep: 5
+        timeout: 300
+      become: false
+
+    - name: Set `Prompt=normal` in /etc/update-manager/release-upgrades
+      ansible.builtin.replace:
+        path: /etc/update-manager/release-upgrades
+        regexp: 'Prompt=(lts|never)'
+        replace: 'Prompt=normal'
+      become: true
+      when: ansible_os_family == "Debian"
+      tags: qa
+
+    - name: Install ubuntu-release-upgrader-core
+      ansible.builtin.apt:
+        name: ubuntu-release-upgrader-core
+        state: present
+      become: true
+      when: ansible_os_family == "Debian"
+      tags: qa
+
+    - name: Upgrade to the next Ubuntu release
+      ansible.builtin.shell: do-release-upgrade -d
+      changed_when: false
+      become: true
+      when: ansible_os_family == "Debian"
+      tags: qa
