@@ -113,18 +113,6 @@
       when: ansible_os_family == "Debian"
       tags: pre
   tasks:
-    - name: Setup directory for git repos
-      ansible.builtin.file:
-        path: "{{ home_dir }}/git"
-        state: directory
-        owner: "{{ local_user }}"
-        group: "{{ local_user }}"
-        recurse: false
-      become: true
-      become_method: ansible.builtin.su
-      become_user: "{{ local_user }}"
-      become_flags: '-s /bin/sh'
-
     - name: Download asdf
       ansible.builtin.git:
         repo: https://github.com/asdf-vm/asdf.git
@@ -177,9 +165,7 @@
       changed_when: false
       register: installed_plugins
       become: true
-      become_method: ansible.builtin.su
       become_user: "{{ local_user }}"
-      become_flags: '-s /bin/sh'
       tags: qa
 
     - name: Install latest runtime
@@ -190,9 +176,7 @@
         executable: /bin/bash
       with_items: "{{ plugin_list.stdout_lines }}"
       become: true
-      become_method: ansible.builtin.su
       become_user: "{{ local_user }}"
-      become_flags: '-s /bin/sh'
       ignore_errors: false
       changed_when: false
       tags: qa
@@ -205,9 +189,7 @@
         executable: /bin/bash
       with_items: "{{ plugin_list.stdout_lines }}"
       become: true
-      become_method: ansible.builtin.su
       become_user: "{{ local_user }}"
-      become_flags: '-s /bin/sh'
       changed_when: false
       tags: qa
 
@@ -220,9 +202,7 @@
       args:
         executable: /bin/bash
       become: true
-      become_method: ansible.builtin.su
       become_user: "{{ local_user }}"
-      become_flags: '-s /bin/sh'
       changed_when: false
       tags: qa
 
