@@ -3,6 +3,7 @@
 **/facts/*
 **/hosts
 **/kubeconfig
+**/markosamuli.linuxbrew/
 
 # INCLUDE
 !**/.gitkeep

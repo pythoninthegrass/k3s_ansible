@@ -54,6 +54,7 @@ dependencies:
   ansible.posix: '*'
   community.general: '*'
   kubernetes.core: '*'
+  markosamuli.linuxbrew: '*'
 
 # The URL of the originating SCM repository
 repository: https://github.com/techno-tim/k3s-ansible
